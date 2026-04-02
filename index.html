@@ -1,0 +1,289 @@
+!DOCTYPE html
+html lang=zh-TW
+head
+    meta charset=UTF-8
+    meta name=viewport content=width=device-width, initial-scale=1.0
+    title決策轉盤title
+    !-- 載入 Tailwind CSS --
+    script src=httpscdn.tailwindcss.comscript
+    style
+         設定 Inter 字體 
+        root { font-family 'Inter', sans-serif; }
+
+         輪盤主體樣式 - 使用 conic-gradient 繪製扇形 
+        .wheel {
+             設置最大寬度，確保響應性 
+            width min(85vw, 350px);
+            height min(85vw, 350px);
+             新增 aspect-ratio 確保寬高比為 11，強制為圓形 
+            aspect-ratio 1  1; 
+            border-radius 50%;
+             使用 cubic-bezier 讓動畫更具彈性，視覺上更真實 
+            transition transform 5s cubic-bezier(0.2, 0.9, 0.4, 1); 
+            
+             繪製 3 個 120 度的等分區塊 
+            background conic-gradient(
+                 賣掉 (120度) 
+                #ef4444 0% 33.33%,
+                 持有 (120度) 
+                #10b981 33.33% 66.66%,
+                 賣一半 (120度) 
+                #f59e0b 66.66% 100%
+            );
+            box-shadow 0 10px 30px rgba(0, 0, 0, 0.4);
+            position relative;
+        }
+
+         區段文字定位容器 (用於徑向旋轉和定位) 
+        .segment-label {
+            position absolute;
+            width 50%;
+            height 50%;
+            top 0;
+            left 50%;
+            transform-origin 0% 100%;  以圓心為旋轉基準點 
+            display flex;
+            align-items center;
+            
+             讓文字往內收縮，實現徑向置中 
+            padding-left 35px; 
+            pointer-events none;
+        }
+
+         輪盤內的文字樣式 (用於反向旋轉，使文字保持水平) 
+        .label-text {
+            font-weight 700;
+            color #fff;
+            text-shadow 1px 1px 4px rgba(0, 0, 0, 0.7);
+            white-space nowrap;
+            font-size 1.25rem;
+        }
+
+         ---------------------------------------------------- 
+         區段定位與文字水平校正 (實現文字置中) 
+         ---------------------------------------------------- 
+
+         賣掉 (0-120度) 定位在 60度 
+        .segment-labelnth-child(1) { transform rotate(60deg); }
+        .segment-labelnth-child(1) .label-text { transform rotate(-60deg); }
+
+         持有 (120-240度) 定位在 180度 
+        .segment-labelnth-child(2) { transform rotate(180deg); }
+        .segment-labelnth-child(2) .label-text { transform rotate(-180deg); }
+
+         賣一半 (240-360度) 定位在 300度 
+        .segment-labelnth-child(3) { transform rotate(300deg); }
+        .segment-labelnth-child(3) .label-text { transform rotate(-300deg); }  等於順時針 60度 
+
+         指針樣式 (位於輪盤下方中央，朝下指針) 
+        .indicator {
+            position absolute;
+            left 50%;
+             使用 translate 確保完全水平置中 
+            transform translateX(-50%); 
+            width 0;
+            height 0; 
+            border-left 12px solid transparent;
+            border-right 12px solid transparent;
+             創造朝下的三角形，定位在輪盤邊緣下方 
+            border-top 25px solid #1f2937; 
+            z-index 10;
+        }
+    style
+head
+!-- 設置 body 為 Flex 容器，垂直置中內容，並加上頂部間距 --
+body class=bg-gray-100 flex flex-col items-center justify-start min-h-screen p-4 pt-10
+
+    div class=max-w-md w-full bg-white p-8 rounded-2xl shadow-xl space-y-8 border border-gray-200
+        !-- 標題調整：手機預設 text-3xl，並強制單行顯示 --
+        h1 class=text-3xl smtext-4xl font-black text-gray-900 text-center tracking-tight whitespace-nowrap
+            📈 投資決策轉盤 🎲
+        h1
+        p class=text-center text-gray-500 text-sm
+            本輪盤為等機率決策，每個選項機率均為 33.33%。
+        p
+
+        !-- 轉盤區域 (使用 Flex 確保置中) --
+        div id=wheelWrapper class=relative flex justify-center items-center py-6
+            div id=wheel class=wheel
+                !-- 輪盤區段文字：新增 .label-text span 進行水平校正 --
+                div class=segment-labelspan class=label-text賣掉spandiv
+                div class=segment-labelspan class=label-text持有spandiv
+                div class=segment-labelspan class=label-text賣一半spandiv
+            div
+            !-- 指針 --
+            div class=indicatordiv
+        div
+        
+        !-- 按鈕 --
+        button id=spinButton class=w-full bg-indigo-600 text-white font-bold text-lg py-3 rounded-xl shadow-lg hoverbg-indigo-700 activescale-[0.98] transition duration-150 disabledbg-indigo-400
+            開始轉動！
+        button
+
+        !-- 結果顯示區域 --
+        div id=resultBox class=mt-6 p-5 text-center rounded-xl bg-gray-50 border border-indigo-200 min-h-[5rem] flex flex-col items-center justify-center
+            p class=text-gray-600 text-lg font-medium點擊上方按鈕，讓輪盤為您做決定。p
+        div
+        
+        !-- 說明文字 --
+        p class=text-xs text-gray-400 text-center pt-2
+            程式邏輯採用隨機權重計算，確保結果機率嚴格相等。
+        p
+    div
+
+    script
+         獲取 DOM 元素
+        const wheel = document.getElementById('wheel');
+        const spinButton = document.getElementById('spinButton');
+        const resultBox = document.getElementById('resultBox');
+        const indicator = document.querySelector('.indicator');
+        
+         設定等機率 (33.333...)
+        const oneThird = 100  3;
+
+         定義轉盤的區段和權重 (都是 33.33% 和 120 度)
+        const segments = [
+             startAngle 和 endAngle 必須與 CSS 中的 conic-gradient 角度一致
+            { text 賣掉, weight oneThird, color #ef4444, startAngle 0, endAngle 120 },
+            { text 持有, weight oneThird, color #10b981, startAngle 120, endAngle 240 },
+            { text 賣一半, weight oneThird, color #f59e0b, startAngle 240, endAngle 360 }
+        ];
+
+        let isSpinning = false;
+        let totalRotation = 0;  追蹤總旋轉度數
+
+        
+          調整指針位置以匹配輪盤的動態尺寸。
+          必須在輪盤尺寸確定後呼叫。
+         
+        function updateIndicatorPosition() {
+            if (wheel && indicator) {
+                 獲取輪盤的實際高度
+                const wheelHeight = wheel.offsetHeight; 
+                
+                 將指針定位在輪盤邊緣下方 (高度 + 5px 間距)
+                indicator.style.top = `${wheelHeight + 5}px`; 
+            }
+        }
+
+
+        
+          根據權重隨機選擇一個獲勝區段 (目前為等機率)。
+          @returns {object} 獲勝區段的物件
+         
+        function selectWeightedWinner() {
+             計算總權重
+            const totalWeight = segments.reduce((sum, s) = sum + s.weight, 0); 
+            let randomNum = Math.random()  totalWeight;
+            
+            for (const segment of segments) {
+                if (randomNum  segment.weight) {
+                    return segment;
+                }
+                randomNum -= segment.weight;
+            }
+             預防浮點數誤差，返回最後一個
+            return segments[segments.length - 1]; 
+        }
+        
+        
+          根據最終輪盤的旋轉角度，判斷指針實際落在哪個區段上。
+          指針位於 180 度 (底部)。
+          @param {number} currentRotation - 輪盤的總旋轉度數
+          @returns {object} 實際結果區段
+         
+        function determineActualWinner(currentRotation) {
+            const normalizedRotation = currentRotation % 360;
+             計算輪盤上哪一個「原始角度」停在了指針位置 (180度)
+            let landedAngle = (180 - normalizedRotation + 360) % 360;
+
+            for (const segment of segments) {
+                if (landedAngle = segment.startAngle - 0.001 && landedAngle  segment.endAngle - 0.001) {
+                    return segment;
+                }
+            }
+            return segments[segments.length - 1];
+        }
+
+
+        
+          執行輪盤轉動動畫和邏輯。
+         
+        function spinWheel() {
+            if (isSpinning) return;
+            isSpinning = true;
+            spinButton.disabled = true;
+            resultBox.innerHTML = `p class=text-indigo-600 font-medium正在轉動，請稍候...p`;
+
+             1. 選擇理論上的獲勝區段
+            const theoreticalWinner = selectWeightedWinner();
+            
+             2. 計算最終的旋轉角度 (Final Rotation)
+            
+             a. 選擇獲勝區段內的一個隨機停止點 (避免停在邊界)
+            const segmentSize = theoreticalWinner.endAngle - theoreticalWinner.startAngle; 
+            const randomOffset = segmentSize  (0.15 + Math.random()  0.7);  停在區段中間 70% 的範圍內
+            const landingDegree = theoreticalWinner.startAngle + randomOffset; 
+
+             b. 計算實際需要的輪盤旋轉度數
+            const numSpins = 6;  確保至少轉 6 圈
+            
+             讓 landingDegree 最終停在指針位置 (180度，即底部)
+            let netRotation = 180 - landingDegree; 
+            
+             確保旋轉是正向 (順時針)
+            if (netRotation  0) {
+                netRotation += 360;
+            }
+            const finalDegree = (numSpins  360) + netRotation;
+
+            totalRotation += finalDegree;
+            
+             3. 應用 CSS 旋轉
+            wheel.style.transform = `rotate(${totalRotation}deg)`;
+
+             4. 設定動畫結束後的結果顯示 (5 秒後)
+            const duration = 5000; 
+            setTimeout(() = {
+                isSpinning = false;
+                spinButton.disabled = false;
+                
+                const actualWinner = determineActualWinner(totalRotation);
+
+                let resultColor = '';
+                let resultText = actualWinner.text;
+
+                 根據結果設置結果框的顏色
+                if (resultText === 賣掉) {
+                    resultColor = 'bg-red-50 text-red-700 border-red-300';
+                } else if (resultText === 持有) {
+                    resultColor = 'bg-green-50 text-green-700 border-green-300';
+                } else {  賣一半
+                    resultColor = 'bg-yellow-50 text-yellow-700 border-yellow-300';
+                }
+
+                resultBox.className = `mt-6 p-5 text-center rounded-xl font-medium ${resultColor} border min-h-[5rem] flex flex-col items-center justify-center transition duration-300`;
+                resultBox.innerHTML = `
+                    p class=text-3xl font-extrabold${resultText}p
+                    p class=text-sm mt-1恭喜！這是輪盤給您的建議！p
+                `;
+
+            }, duration);
+        }
+
+         頁面載入完成後執行
+        window.onload = () = {
+             初始化輪盤為 0 度
+            wheel.style.transform = `rotate(0deg)`; 
+            
+             綁定事件監聽器
+            spinButton.addEventListener('click', spinWheel);
+            
+             初始化和監聽視窗大小變動，確保指針位置正確
+            updateIndicatorPosition();
+            window.addEventListener('resize', updateIndicatorPosition);
+        }
+    script
+
+body
+html
